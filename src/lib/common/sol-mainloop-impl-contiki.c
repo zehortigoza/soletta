@@ -31,7 +31,6 @@
  */
 
 #include <contiki.h>
-#include <lib/sensors.h>
 
 #include "sol-event-handler-contiki.h"
 #include "sol-mainloop-common.h"
@@ -234,7 +233,7 @@ event_dispatch(void)
     int i;
     struct sol_event_handler_contiki *event_handler;
 
-    if (event != sensors_event)
+    if (event == PROCESS_EVENT_TIMER)
         return;
 
     event_handling_processing = true;

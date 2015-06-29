@@ -34,26 +34,24 @@
 #include <stdlib.h>
 
 #include <contiki.h>
-#include <dev/button-sensor.h>
-#include <dev/leds.h>
-#include <lib/sensors.h>
+#include <dev/gpio.h>
 
 #define SOL_LOG_DOMAIN &_log_domain
 #include "sol-log-internal.h"
+#include "sol-event-handler-contiki.h"
 #include "sol-gpio.h"
 #include "sol-mainloop.h"
 #include "sol-util.h"
-#include "sol-event-handler-contiki.h"
 
-static SOL_LOG_INTERNAL_DECLARE(_log_domain, "gpio");
+SOL_LOG_INTERNAL_DECLARE_STATIC(_log_domain, "gpio");
 
 struct sol_gpio {
     int pin;
-    struct sensors_sensor *button_sensor;
     bool active_low;
     struct {
         void (*cb)(void *data, struct sol_gpio *gpio);
-        void *data;
+        const void *data;
+        void *int_handler;
     } irq;
 };
 
@@ -62,105 +60,90 @@ event_handler_cb(void *user_data, process_event_t ev, process_data_t ev_data)
 {
     struct sol_gpio *gpio = user_data;
 
-    gpio->irq.cb(gpio->irq.data, gpio);
+    gpio->irq.cb((void *)gpio->irq.data, gpio);
 }
 
-struct sol_gpio *
+SOL_API struct sol_gpio *
 sol_gpio_open_raw(int pin, const struct sol_gpio_config *config)
 {
     struct sol_gpio *gpio;
-    struct sensors_sensor *found = NULL;
+    const unsigned int drive_table[] = {
+        [SOL_GPIO_DRIVE_NONE] = GPIO_NO_PULL,
+        [SOL_GPIO_DRIVE_PULL_UP] = GPIO_PULL_UP,
+        [SOL_GPIO_DRIVE_PULL_DOWN] = GPIO_PULL_DOWN
+    };
+    gpio_pull_resistor_t pull;
 
     SOL_LOG_INTERNAL_INIT_ONCE;
 
-    process_start(&sensors_process, NULL);
-
-    if (config->drive_mode != SOL_GPIO_DRIVE_NONE) {
-        SOL_ERR("Unable to set pull resistor on pin=%d", pin);
+    if (unlikely(config->api_version != SOL_GPIO_CONFIG_API_VERSION)) {
+        SOL_WRN("Couldn't open gpio that has unsupported version '%u'"
+            "expected version is '%u'",
+            config->api_version, SOL_GPIO_CONFIG_API_VERSION);
         return NULL;
-    }
-
-    if (config->dir == SOL_GPIO_DIR_IN) {
-        const struct sensors_sensor *sensor = sensors_first();
-        int i = 0;
-
-        while (sensor) {
-            if (strcmp(sensor->type, BUTTON_SENSOR)) {
-                sensor = sensors_next(sensor);
-                continue;
-            }
-            if (i == pin) {
-                found = (struct sensors_sensor *)sensor;
-                break;
-            }
-            sensor = sensors_next(sensor);
-            i++;
-        }
-
-        if (!found) {
-            SOL_ERR("GPIO pin=%d not found.", pin);
-            return NULL;
-        }
-    } else {
-        if (pin < 0 || pin > 7) {
-            SOL_ERR("GPIO pin=%d not found.", pin);
-            return NULL;
-        }
     }
 
     gpio = malloc(sizeof(struct sol_gpio));
     SOL_NULL_CHECK(gpio, NULL);
 
     gpio->pin = pin;
-    gpio->button_sensor = found;
     gpio->active_low = config->active_low;
 
-    if (config->dir == SOL_GPIO_DIR_IN) {
-        gpio->irq.cb = config->in.cb;
-        gpio->irq.data = (void *)config->in.user_data;
-        if (config->in.cb)
-            sol_mainloop_contiki_event_handler_add(&sensors_event, found,
-                event_handler_cb, gpio);
-    } else
+    if (config->dir == SOL_GPIO_DIR_OUT) {
+        if (gpio_init(gpio->pin, GPIO_MODE_OUTPUT, GPIO_NO_PULL) < 0)
+            goto error;
         sol_gpio_write(gpio, config->out.value);
+    } else {
+        pull = drive_table[config->drive_mode];
+        if (config->in.trigger_mode == SOL_GPIO_EDGE_NONE) {
+            if (gpio_init(gpio->pin, GPIO_MODE_INPUT, pull) < 0)
+                goto error;
+        } else {
+            gpio_interruption_trigger_t trigger;
+            const unsigned int trigger_table[] = {
+                [SOL_GPIO_EDGE_RISING] = GPIO_RISING,
+                [SOL_GPIO_EDGE_FALLING] = GPIO_FALLING,
+                [SOL_GPIO_EDGE_BOTH] = GPIO_BOTH
+            };
+
+            trigger = trigger_table[config->in.trigger_mode];
+            gpio->irq.cb = config->in.cb;
+            gpio->irq.data = config->in.user_data;
+            if (gpio_init_input_interruption(gpio->pin, pull, trigger) < 0)
+                goto error;
+            sol_mainloop_contiki_event_handler_add(gpio_input_event,
+                (void *)(long)pin, event_handler_cb, gpio);
+        }
+    }
 
     return gpio;
+error:
+    free(gpio);
+    return NULL;
 }
 
-void
+SOL_API void
 sol_gpio_close(struct sol_gpio *gpio)
 {
     SOL_NULL_CHECK(gpio);
     if (gpio->irq.cb)
-        sol_mainloop_contiki_event_handler_del(&sensors_event,
-            gpio->button_sensor, event_handler_cb, gpio);
+        sol_mainloop_contiki_event_handler_del(gpio_input_event,
+            (void *)(long)gpio->pin, event_handler_cb, gpio);
+    gpio_disable(gpio->pin);
     free(gpio);
 }
 
-bool
+SOL_API bool
 sol_gpio_write(struct sol_gpio *gpio, bool value)
 {
     SOL_NULL_CHECK(gpio, false);
-
-    if (gpio->button_sensor)
-        return false;
-
-    value = gpio->active_low ^ value;
-
-    if (value)
-        leds_set(leds_get() | (1 << gpio->pin));
-    else
-        leds_set(leds_get() & (~(1 << gpio->pin)));
+    gpio_write(gpio->pin, gpio->active_low ^ value);
     return true;
 }
 
-int
+SOL_API int
 sol_gpio_read(struct sol_gpio *gpio)
 {
     SOL_NULL_CHECK(gpio, -EINVAL);
-
-    if (gpio->button_sensor)
-        return gpio->active_low ^ !!gpio->button_sensor->value(0);
-
-    return gpio->active_low ^ !!(leds_get() & (1 << gpio->pin));
+    return gpio->active_low ^ !!gpio_read(gpio->pin);
 }
