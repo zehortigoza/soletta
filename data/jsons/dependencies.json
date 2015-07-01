@@ -162,7 +162,7 @@
 	    "dependency": "riotos",
 	    "type": "ccode",
 	    "headers": [
-		"<riotos/cpu.h>"
+		"<cpu.h>"
 	    ]
 	},
 	{
