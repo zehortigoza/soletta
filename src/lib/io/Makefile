@@ -55,6 +55,8 @@ obj-io-uart-$(PLATFORM_RIOTOS) := \
     sol-uart-riot.o
 obj-io-uart-$(PLATFORM_LINUX) := \
     sol-uart-linux.o
+obj-io-uart-$(PLATFORM_CONTIKI) := \
+    sol-uart-contiki.o
 
 headers-$(USE_AIO) += \
     include/sol-aio.h
