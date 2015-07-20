@@ -51,7 +51,7 @@ static bool event_handling_processing;
 static unsigned int event_handler_pending_deletion;
 
 struct sol_event_handler_contiki {
-    const process_event_t *ev;
+    process_event_t ev;
     process_data_t ev_data;
     void (*cb)(void *user_data, process_event_t ev, process_data_t ev_data);
     const void *user_data;
@@ -160,7 +160,7 @@ sol_mainloop_contiki_event_set(process_event_t ev, process_data_t data)
 }
 
 bool
-sol_mainloop_contiki_event_handler_add(const process_event_t *ev, const process_data_t ev_data, void (*cb)(void *user_data, process_event_t ev, process_data_t ev_data), const void *data)
+sol_mainloop_contiki_event_handler_add(process_event_t ev, const process_data_t ev_data, void (*cb)(void *user_data, process_event_t ev, process_data_t ev_data), const void *data)
 {
     struct sol_event_handler_contiki *event_handler =
         malloc(sizeof(struct sol_event_handler_contiki));
@@ -182,7 +182,7 @@ sol_mainloop_contiki_event_handler_add(const process_event_t *ev, const process_
 }
 
 bool
-sol_mainloop_contiki_event_handler_del(const process_event_t *ev, const process_data_t ev_data, void (*cb)(void *user_data, process_event_t ev, process_data_t ev_data), const void *data)
+sol_mainloop_contiki_event_handler_del(process_event_t ev, const process_data_t ev_data, void (*cb)(void *user_data, process_event_t ev, process_data_t ev_data), const void *data)
 {
     int i;
     struct sol_event_handler_contiki *event_handler;
@@ -241,7 +241,7 @@ event_dispatch(void)
     SOL_PTR_VECTOR_FOREACH_IDX (&event_handler_vector, event_handler, i) {
         if (event_handler->delete_me)
             continue;
-        if (*event_handler->ev != event)
+        if (event_handler->ev != event)
             continue;
         if (event_handler->ev_data != NULL &&
             event_handler->ev_data != event_data)
