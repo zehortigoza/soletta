@@ -2,4 +2,5 @@ config CONTIKI
     def_bool y
     select FEATURE_HW_GPIO
     select FEATURE_HW_UART
+    select FEATURE_HW_SPI
     select FEATURE_FLOW

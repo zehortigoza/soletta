@@ -50,6 +50,8 @@ obj-io-spi-$(PLATFORM_RIOTOS) := \
     sol-spi-riot.o
 obj-io-spi-$(PLATFORM_LINUX) := \
     sol-spi-linux.o
+obj-io-spi-$(PLATFORM_CONTIKI) := \
+    sol-spi-contiki.o
 
 obj-io-uart-$(PLATFORM_RIOTOS) := \
     sol-uart-riot.o
