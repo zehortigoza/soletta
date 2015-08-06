@@ -45,6 +45,8 @@ obj-io-i2c-$(PLATFORM_RIOTOS) += \
     sol-i2c-riot.o
 obj-io-i2c-$(PLATFORM_LINUX) += \
     sol-i2c-linux.o
+obj-io-i2c-$(PLATFORM_CONTIKI) += \
+    sol-i2c-contiki.o
 
 obj-io-spi-$(PLATFORM_RIOTOS) := \
     sol-spi-riot.o

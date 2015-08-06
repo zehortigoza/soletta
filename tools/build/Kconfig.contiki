@@ -3,4 +3,5 @@ config CONTIKI
     select FEATURE_HW_GPIO
     select FEATURE_HW_UART
     select FEATURE_HW_SPI
+    select FEATURE_HW_I2C
     select FEATURE_FLOW
