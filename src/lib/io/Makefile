@@ -38,6 +38,8 @@ obj-io-pwm-$(PLATFORM_RIOTOS) += \
     sol-pwm-riot.o
 obj-io-pwm-$(PLATFORM_LINUX) += \
     sol-pwm-linux.o
+obj-io-pwm-$(PLATFORM_CONTIKI) += \
+    sol-pwm-contiki.o
 
 obj-io-i2c-$(USE_I2C) := \
     sol-i2c-common.o

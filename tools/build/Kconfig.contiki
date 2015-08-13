@@ -4,4 +4,5 @@ config CONTIKI
     select FEATURE_HW_UART
     select FEATURE_HW_SPI
     select FEATURE_HW_I2C
+    select FEATURE_HW_PWM
     select FEATURE_FLOW
