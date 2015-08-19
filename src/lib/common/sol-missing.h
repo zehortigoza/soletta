@@ -36,7 +36,7 @@
 extern "C" {
 #endif
 
-#ifndef HAVE_DECL_STRNDUPA
+#if 0
 #include <alloca.h>
 
 #define __strndupa_internal__(str_, len_, var_)       \
@@ -79,7 +79,7 @@ err:
 }
 #endif
 
-#ifndef HAVE_DECL_MEMMEM
+#if 0
 #include <string.h>
 
 static inline void *
